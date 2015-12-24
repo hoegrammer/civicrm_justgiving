@@ -1,10 +1,10 @@
 <?php
 
+// Poor man's namespace for functions that do not depend on Civi.
+// Must be public and static, and pure if possible (or system/IO) 
+
 class assistJustGivingHelpers {
-    public static function sub_array(array $haystack, array $needle)
-    {
-        return array_intersect_key($haystack, array_flip($needle));
-    }
+
     public static function csvFileToArray($filename) {
 
         // this prevents problems with different line endings
