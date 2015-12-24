@@ -1,6 +1,10 @@
 <?php
 
 class assistJustGivingHelpers {
+    public static function sub_array(array $haystack, array $needle)
+    {
+        return array_intersect_key($haystack, array_flip($needle));
+    }
     public static function csvFileToArray($filename) {
 
         // this prevents problems with different line endings

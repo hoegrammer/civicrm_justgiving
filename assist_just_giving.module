@@ -13,8 +13,9 @@ function assist_just_giving_import($filename) {
     try {
         $justGivingRows = AssistJustGivingHelpers::csvFileToArray($filename);
         $transformer = new AssistJustGivingTransformer($justGivingRows);
+        $communicator = new AssistJustGivingCommunicator();
         $contacts = $transformer->getContacts();
-        return print_r($contacts, true);
+        return $communicator->ensureContactsExist($contacts);
     } catch(Exception $e) {
         return $e->getMessage();
     } 
@@ -28,25 +29,77 @@ class AssistJustGivingTransformer {
     }
     public function getContacts() {
         $contacts = array();
+        $doneIDs = array();
         foreach($this->justGivingRows as $row) {
-            $justGivingID = $row["Fundraiser User Id"];
-            if($justGivingID && !$this->alreadyIn($contacts, $justGivingID)) {
-                array_push($contacts, array(
-                    $this->justGivingIDFieldName => $justGivingID,
-                    "contact_type" => "Individual",
-                    "first_name" => $row["Fundraiser FirstName"],
-                    "last_name" => $row["Fundraiser LastName"]
-                ));       
+            if ($row['Fundraiser User Id']) {
+                $fundraiserID = $row["Fundraiser User Id"];
+                $contacts[$fundraiserID] = $this->getContact($row, "Fundraiser");
+            }
+            if ($row["Donor E-mail"] !== "Anonymous") {
+                $donorID = $row["Donor User Id"];
+                $contacts[$donorID] = $this->getContact($row, "Donor");
             }
         } 
         return $contacts;
+    }  
+    private function getContact($row, $prefix) {
+        return array(
+            $this->justGivingIDFieldName => $row["$prefix User Id"],
+            "contact_type" => "Individual",
+            "first_name" => $row["$prefix FirstName"],
+            "last_name" => $row["$prefix LastName"],
+            "email" => $row["$prefix E-mail"],
+            "source" => "Just Giving Import " . date("Y-m-d")
+        );
     }
-    private function alreadyIn($contacts, $justGivingID) {
-        foreach($contacts as $contact) {
-            if ($contact[$this->justGivingIDFieldName] == $justGivingID) {
+}
+
+
+class AssistJustGivingCommunicator {
+    private $justGivingIDFieldName = "custom_1";
+    public function ensureContactsExist($contacts) {
+        $feedback = '';
+        civicrm_initialize();
+        foreach($contacts as $justGivingID => $contact) {
+            try {
+                if ($this->justGivingIDExistsInCivi($justGivingID)) {
+                    $feedback .= "$justGivingID exists ... ";
+                } elseif ($this->findContactAndAddJustGivingID($contact, $justGivingID)) {
+                    $feedback .= "$justGivingID added to contact ...";
+                } else {
+                    civicrm_api3('Contact', 'create', $contact);
+                    $feedback .= "Contact created for $justGivingID ... ";
+                }
+            } catch (Exception $e) {
+                $feedback .= "$justGivingID: " . $e.getMessage();
+            }
+        }
+        return $feedback . 'All done!';
+    }
+    private function justGivingIDExistsInCivi($justGivingID) {
+        return civicrm_api3('Contact', 'get', array(
+            $this->justGivingIDFieldName => $justGivingID
+        ))["count"] > 0;
+    }
+    private function findContactAndAddJustGivingID($contact, $justGivingID) {
+        $candidates =  civicrm_api3('Contact', 'get', array(
+            "first_name" => $contact["first_name"],
+            "last_name" => $contact["last_name"],
+            // This lets us match any email; just including it as
+            // a field would only match primary
+            "api.Email.get" => array("email" => $contact["email"])    
+        ))["values"];
+        // If there's more than one match, we don't care which one is used.
+        foreach ($candidates as $candidate) {
+            // Candidates are returned even if there is no match on
+            // email, but email is returned only if it matches
+            if ($candidate["api.Email.get"]["count"] > 0) {
+                civicrm_api3("Contact", "create", array(
+                    "id" => $candidate["id"],
+                    $this->justGivingIDFieldName => $justGivingID
+                ));
                 return true;
             }
         }
-        return false;
-    }  
+    }
 }
