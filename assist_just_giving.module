@@ -1,0 +1,52 @@
+<?php
+
+require_once('inc/assist_just_giving_helpers.inc.php');
+
+function assist_just_giving_node_presave($node) {
+    if ($node->type == 'just_giving_batch') {
+        $filename = file_load($node->field_file['und'][0]['fid'])->uri;
+        $node->field_results['und'][0]['value'] = assist_just_giving_import($filename);
+    }
+}
+
+function assist_just_giving_import($filename) {
+    try {
+        $justGivingRows = AssistJustGivingHelpers::csvFileToArray($filename);
+        $transformer = new AssistJustGivingTransformer($justGivingRows);
+        $contacts = $transformer->getContacts();
+        return print_r($contacts, true);
+    } catch(Exception $e) {
+        return $e->getMessage();
+    } 
+}
+
+class AssistJustGivingTransformer {
+    private $justGivingIDFieldName = "custom_1";
+    private $justGivingRows;
+    public function __construct(array $justGivingRows) {
+        $this->justGivingRows = $justGivingRows;
+    }
+    public function getContacts() {
+        $contacts = array();
+        foreach($this->justGivingRows as $row) {
+            $justGivingID = $row["Fundraiser User Id"];
+            if($justGivingID && !$this->alreadyIn($contacts, $justGivingID)) {
+                array_push($contacts, array(
+                    $this->justGivingIDFieldName => $justGivingID,
+                    "contact_type" => "Individual",
+                    "first_name" => $row["Fundraiser FirstName"],
+                    "last_name" => $row["Fundraiser LastName"]
+                ));       
+            }
+        } 
+        return $contacts;
+    }
+    private function alreadyIn($contacts, $justGivingID) {
+        foreach($contacts as $contact) {
+            if ($contact[$this->justGivingIDFieldName] == $justGivingID) {
+                return true;
+            }
+        }
+        return false;
+    }  
+}
