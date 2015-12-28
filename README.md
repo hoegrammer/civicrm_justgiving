@@ -7,7 +7,8 @@ Takes a Just Giving payment report and creates contributions in CiviCRM. It matc
 
 ## Setup
 * Create a content type with machine name "just_giving_import"
-* Add a hidden file field (machine name: "file") and a hidden text field (10,000 characters, machine name: "results")
+* Set up a Private Files directory in Drupal if you don't already have one (tip: add a `.htaccess` saying just `Deny from all`)
+* Add a hidden file field (machine name: "file", destination: Private) and a hidden text field (10,000 characters, machine name: "results")
 * Create two custom (alphanumeric) fields on the Individual contact type, one for Just Giving ID and one for Just Giving URL. Enter the machine names for these fields into the code.
 * Create a CiviCRM contact which will be used to assign all anonymous donations. Give then a Just Giving ID and enter this in the code.
 
