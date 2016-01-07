@@ -57,6 +57,12 @@ class AssistJustGivingTransformer {
 
 class AssistJustGivingCommunicator {
     private $justGivingIDFieldName = "custom_1";
+
+    private function formatError($errorString) {
+        // Aim to change this wrapping to add colour via HTML
+        return "***ERROR: $errorString ***";
+    }
+
     public function ensureContactsExist($contacts) {
         $feedback = '';
         civicrm_initialize();
@@ -73,7 +79,7 @@ class AssistJustGivingCommunicator {
                     $feedback .= "Created contact $contactId with Just Giving ID $justGivingID ... ";
                 }
             } catch (Exception $e) {
-                $feedback .= "$justGivingID: " . $e.getMessage();
+                $feedback .= $this->formatError("Just Giving ID $justGivingID: " . $e->getMessage()) . " ... ";
             }
         }
         return $feedback . 'All done!';
