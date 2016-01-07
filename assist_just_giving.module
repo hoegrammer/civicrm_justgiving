@@ -63,12 +63,14 @@ class AssistJustGivingCommunicator {
         foreach($contacts as $justGivingID => $contact) {
             try {
                 if ($this->justGivingIDExistsInCivi($justGivingID)) {
-                    $feedback .= "$justGivingID exists ... ";
-                } elseif ($this->findContactAndAddJustGivingID($contact, $justGivingID)) {
-                    $feedback .= "$justGivingID added to contact ...";
+                    continue;
+                } elseif ($contactId = $this->findContactAndAddJustGivingID($contact, $justGivingID)) {
+                    $feedback .= "Added Just Giving ID $justGivingID to contact $contactId ... ";
                 } else {
-                    civicrm_api3('Contact', 'create', $contact);
-                    $feedback .= "Contact created for $justGivingID ... ";
+                    $results = civicrm_api3('Contact', 'create', $contact);
+                    $contactId = $results['id'];
+                    error_log(print_r($results, true));
+                    $feedback .= "Created contact $contactId with Just Giving ID $justGivingID ... ";
                 }
             } catch (Exception $e) {
                 $feedback .= "$justGivingID: " . $e.getMessage();
@@ -98,7 +100,7 @@ class AssistJustGivingCommunicator {
                     "id" => $candidate["id"],
                     $this->justGivingIDFieldName => $justGivingID
                 ));
-                return true;
+                return $candidate["id"];
             }
         }
     }
