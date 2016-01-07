@@ -73,9 +73,7 @@ class AssistJustGivingCommunicator {
                 } elseif ($contactId = $this->findContactAndAddJustGivingID($contact, $justGivingID)) {
                     $feedback .= "Added Just Giving ID $justGivingID to contact $contactId ... ";
                 } else {
-                    $results = civicrm_api3('Contact', 'create', $contact);
-                    $contactId = $results['id'];
-                    error_log(print_r($results, true));
+                    $contactId = $this->createCiviContact($contact);
                     $feedback .= "Created contact $contactId with Just Giving ID $justGivingID ... ";
                 }
             } catch (Exception $e) {
@@ -83,6 +81,12 @@ class AssistJustGivingCommunicator {
             }
         }
         return $feedback . 'All done!';
+    }
+    private function createCiviContact($contact) {
+        $results = civicrm_api3('Contact', 'create', $contact);
+        $contactId = $results['id'];
+        error_log(print_r($results, true));  // for logging during development
+        return $contactId;
     }
     private function justGivingIDExistsInCivi($justGivingID) {
         return civicrm_api3('Contact', 'get', array(
