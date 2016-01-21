@@ -24,7 +24,6 @@ class assistJustGivingHelpers {
         fclose($fp);
         if (strlen($first_line) == 0) { return False; } // Empty file
         return $first_line[0] == '"';
-
     }
 
     public static function csvFileToArray($filename) {
