@@ -11,9 +11,6 @@ function assist_just_giving_node_presave($node) {
 
 function assist_just_giving_import($filename) {
     try {
-        /*if (!AssistJustGivingHelpers::csvConfirmQuoted($filename)) {
-            return("ERROR: CSV File not quoted");
-        }*/
         $justGivingRows = AssistJustGivingHelpers::extractDataFromQuotedCSVFile($filename);
         $transformer = new AssistJustGivingTransformer($justGivingRows);
         $communicator = new AssistJustGivingCommunicator();
@@ -52,6 +49,11 @@ class AssistJustGivingTransformer {
             "first_name" => $row["$prefix FirstName"],
             "last_name" => $row["$prefix LastName"],
             "email" => $row["$prefix E-mail"],
+            "postal_code" => $row["$prefix Postcode"],
+            "city" => $row["$prefix Town"],
+            "street_address" => $row["$prefix Address Line 1"],
+            "supplemental_address" => $row["$prefix Address Line 2"],
+            "location_type_id" => "Home",  
             "source" => "Just Giving Import " . date("Y-m-d")
         );
     }
@@ -69,14 +71,14 @@ class AssistJustGivingCommunicator {
     public function ensureContactsExist($contacts) {
         $feedback = '';
         civicrm_initialize();
-        foreach($contacts as $justGivingID => $contact) {
+        foreach($contacts as $justGivingID => $contactData) {
             try {
                 if ($this->justGivingIDExistsInCivi($justGivingID)) {
                     continue;
-                } elseif ($contactId = $this->findContactAndAddJustGivingID($contact, $justGivingID)) {
+                } elseif ($contactId = $this->findContactAndAddJustGivingID($contactData, $justGivingID)) {
                     $feedback .= "Added Just Giving ID $justGivingID to contact $contactId ... ";
                 } else {
-                    $contactId = $this->createCiviContact($contact);
+                    $contactId = $this->createContactInCivi($contactData);
                     $feedback .= "Created contact $contactId with Just Giving ID $justGivingID ... ";
                 }
             } catch (Exception $e) {
@@ -85,24 +87,26 @@ class AssistJustGivingCommunicator {
         }
         return $feedback . 'All done!';
     }
-    private function createCiviContact($contact) {
-        $results = civicrm_api3('Contact', 'create', $contact);
-        $contactId = $results['id'];
-        error_log(print_r($results, true));  // for logging during development
-        return $contactId;
+    private function createContactInCivi($contactData) {
+        $contactInCivi = civicrm_api3('Contact', 'create', $contactData); // doesn't handle address data...
+        
+        // ...so now also add address data
+        $contactData['contact_id'] = $contactInCivi['id'];
+        civicrm_api3('Address', 'create', $contactData);
+        return $contactInCivi['id'];
     }
     private function justGivingIDExistsInCivi($justGivingID) {
         return civicrm_api3('Contact', 'get', array(
             $this->justGivingIDFieldName => $justGivingID
         ))["count"] > 0;
     }
-    private function findContactAndAddJustGivingID($contact, $justGivingID) {
+    private function findContactAndAddJustGivingID($contactData, $justGivingID) {
         $candidates =  civicrm_api3('Contact', 'get', array(
-            "first_name" => $contact["first_name"],
-            "last_name" => $contact["last_name"],
+            "first_name" => $contactData["first_name"],
+            "last_name" => $contactData["last_name"],
             // This lets us match any email; just including it as
             // a field would only match primary
-            "api.Email.get" => array("email" => $contact["email"])    
+            "api.Email.get" => array("email" => $contactData["email"])    
         ))["values"];
         // If there's more than one match, we don't care which one is used.
         foreach ($candidates as $candidate) {
