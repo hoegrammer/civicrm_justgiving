@@ -11,10 +11,10 @@ function assist_just_giving_node_presave($node) {
 
 function assist_just_giving_import($filename) {
     try {
-        if (!AssistJustGivingHelpers::csvConfirmQuoted($filename)) {
+        /*if (!AssistJustGivingHelpers::csvConfirmQuoted($filename)) {
             return("ERROR: CSV File not quoted");
-        }
-        $justGivingRows = AssistJustGivingHelpers::csvFileToArray($filename);
+        }*/
+        $justGivingRows = AssistJustGivingHelpers::extractDataFromQuotedCSVFile($filename);
         $transformer = new AssistJustGivingTransformer($justGivingRows);
         $communicator = new AssistJustGivingCommunicator();
         $contacts = $transformer->getContacts();
