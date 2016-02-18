@@ -13,9 +13,16 @@ function assist_just_giving_import($filename) {
     try {
         $extractor = new AssistJustGivingDataExtractor($filename);
         $communicator = new AssistJustGivingCommunicator();
+        $anonJGtoCiviIDMap = $extractor->mapAnonJustGivingIDsToAnonCiviID();
+        error_log('start anon');
+        error_log(print_r($anonJGtoCiviIDMap, true));
+        error_log('end anon');
         $contacts = $extractor->extractContacts();
-        if ($map = $communicator->ensureContactsExistAndCreateMap($contacts)) {
-            $donations = $extractor->extractDonations($map);
+        if ($namedJGtoCiviIDMap = $communicator->ensureContactsExistAndCreateMap($contacts)) {
+            error_log('start named');
+            error_log(print_r($namedJGtoCiviIDMap, true));
+            error_log('end named');
+            $donations = $extractor->extractDonations($anonJGtoCiviIDMap + $namedJGtoCiviIDMap);
             $communicator->recordDonations($donations);
         }
         return $communicator->getFeedback();
@@ -25,15 +32,27 @@ function assist_just_giving_import($filename) {
 }
 
 class AssistJustGivingDataExtractor {
+    private $anonymousCiviID = 1365;
     private $justGivingIDFieldName = "custom_1";
     private $justGivingRows;
     public function __construct($filename) {
         $this->justGivingRows = AssistJustGivingHelpers::extractDataFromQuotedCSVFile($filename);
     }
-    public function extractDonations($map) {
+    public function mapAnonJustGivingIDsToAnonCiviID() {
+        $anonJGtoCiviIDMap = array();
+        foreach($this->justGivingRows as $row) {
+            if ($row["Donor E-mail"] === "Anonymous") {
+                $justGivingID = $row["Donor User Id"];
+                $anonJGtoCiviIDMap[$justGivingID] = $this->anonymousCiviID;
+            }
+        } 
+        return $anonJGtoCiviIDMap;
+    }
+    public function extractDonations($fullJGtoCiviIDMap) {
+        error_log(print_r($fullJGtoCiviIDMap, true));
         $donations = array();
         foreach($this->justGivingRows as $row) {
-            $donations[] = $this->extractDonation($row, $map);
+            $donations[] = $this->extractDonation($row, $fullJGtoCiviIDMap);
         } 
         return $donations;
     }
@@ -41,12 +60,12 @@ class AssistJustGivingDataExtractor {
         $contacts = array();
         foreach($this->justGivingRows as $row) {
             if ($row['Fundraiser User Id']) {
-                $fundraiserID = $row["Fundraiser User Id"];
-                $contacts[$fundraiserID] = $this->extractContact($row, "Fundraiser");
-            }
+                $justGivingID = $row["Fundraiser User Id"];
+                $contacts[$justGivingID] = $this->extractContact($row, "Fundraiser");
+            } // A single row can contain both a fundraiser and a donor
             if ($row["Donor E-mail"] !== "Anonymous") {
-                $donorID = $row["Donor User Id"];
-                $contacts[$donorID] = $this->extractContact($row, "Donor");
+                $justGivingID = $row["Donor User Id"];
+                $contacts[$justGivingID] = $this->extractContact($row, "Donor");
             }
         } 
         return $contacts;
@@ -66,11 +85,11 @@ class AssistJustGivingDataExtractor {
             "source" => "Just Giving Import " . date("Y-m-d")
         );
     }
-    private function extractDonation($row, $map) {
+    private function extractDonation($row, $fullJGtoCiviIDMap) {
         return array(
-            "contact_id" => $map($row["Donor User Id"]),
+            "contact_id" => $fullJGtoCiviIDMap[$row["Donor User Id"]],
             "total_amount" => $row["Net Donation Amount"],
-            "financial_type" => "Donation"
+            "financial_type_id" => "Donation"
         );
     }
 }
@@ -91,19 +110,19 @@ class AssistJustGivingCommunicator {
 
     public function ensureContactsExistAndCreateMap($contacts) {
         civicrm_initialize();
-        $map = array();
+        $namedJGtoCiviIDMap = array();
         $success = true;
         foreach($contacts as $justGivingID => $contact) {
             try {
                 if ($civiId = $this->findContactWithJustGivingID($justGivingID)) {
-                    continue;
+                    ;
                 } elseif ($civiId = $this->findContactAndAddJustGivingID($contact, $justGivingID)) {
                     $this->feedback .= "Added Just Giving ID $justGivingID to contact $civiId ... ";
                 } else {
                     $civiId = $this->recordContact($contact);
                     $this->feedback .= "Created contact $civiId with Just Giving ID $justGivingID ... ";
                 }
-                $map[$justGivingId] = $civiId;
+                $namedJGtoCiviIDMap[$justGivingID] = $civiId;
             } catch (Exception $e) {
                 $this->feedback .= $this->formatError("Just Giving ID $justGivingID: " . $e->getMessage()) . " ... ";
                 $success = false;
@@ -112,7 +131,7 @@ class AssistJustGivingCommunicator {
         if (!$success) {
             $this->feedback .= " INFO: NO DONATIONS ADDED DUE TO PRIOR ERRORS SHOWN ABOVE";
         }
-        return $success ? $map : false;
+        return $success ? $namedJGtoCiviIDMap : false;
     }
 
     private function recordContact($contact) {
@@ -123,13 +142,13 @@ class AssistJustGivingCommunicator {
         civicrm_api3('Address', 'create', $contact);
         return $civiContact['id'];
     }
-    private function recordDonations($donations) {
+    public function recordDonations($donations) {
         try {
             forEach($donations as $donation) {
-                civicrm_api3('Contribution', 'create', $donationData);
+                civicrm_api3('Contribution', 'create', $donation);
                 $amount = $donation['total_amount'];
                 $civiId = $donation['contact_id'];
-                $this->feedback = "Added donation of $amount from contact $civiId ...";
+                $this->feedback .= "Added donation of £$amount from contact $civiId ...";
             }
         } catch(Exception $e) {
             $this->feedback .= $this->formatError($e->getMessage()) . " ... ";
