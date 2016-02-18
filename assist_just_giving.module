@@ -22,7 +22,10 @@ function assist_just_giving_import($filename) {
             error_log('start named');
             error_log(print_r($namedJGtoCiviIDMap, true));
             error_log('end named');
-            $donations = $extractor->extractDonations($anonJGtoCiviIDMap + $namedJGtoCiviIDMap);
+            // The order of adding the two maps is important. If the second map has keys
+            // in common with the first they are thrown away. If the same JG ID exists against
+            // both Anon and a person, we want the person to get it.
+            $donations = $extractor->extractDonations($namedJGtoCiviIDMap + $anonJGtoCiviIDMap);
             $communicator->recordDonations($donations);
         }
         return $communicator->getFeedback();
@@ -86,11 +89,22 @@ class AssistJustGivingDataExtractor {
         );
     }
     private function extractDonation($row, $fullJGtoCiviIDMap) {
-        return array(
-            "contact_id" => $fullJGtoCiviIDMap[$row["Donor User Id"]],
-            "total_amount" => $row["Net Donation Amount"],
+        $donorCiviId = $fullJGtoCiviIDMap[$row["Donor User Id"]];
+        $amount = $row["Net Donation Amount"];
+        $donation = array(
+            "contact_id" => $donorCiviId,
+            "total_amount" => $amount, 
             "financial_type_id" => "Donation"
         );
+        // If there is a fundraiser for the donation then it needs a soft credit.
+        // This is done by "API Chaining" (worked out using Civi API Explorer).
+        if ($row["Fundraiser User Id"]) {
+          $fundraiserCiviId = $fullJGtoCiviIDMap[$row["Fundraiser User Id"]];
+          $donation['api.ContributionSoft.create'] = array(
+            'contact_id' => $fundraiserCiviId, 'amount' => $amount
+          );
+        }
+        return $donation;
     }
 }
 
@@ -148,7 +162,11 @@ class AssistJustGivingCommunicator {
                 civicrm_api3('Contribution', 'create', $donation);
                 $amount = $donation['total_amount'];
                 $civiId = $donation['contact_id'];
-                $this->feedback .= "Added donation of £$amount from contact $civiId ...";
+                $this->feedback .= "Added donation of £$amount from contact $civiId ";
+                if (isset($donation['api.ContributionSoft.create'])) {
+                  $this->feedback .= "Soft credited to " . $donation['api.ContributionSoft.create']['contact_id'];
+                }
+                $this->feedback .= ' ... ';
             }
         } catch(Exception $e) {
             $this->feedback .= $this->formatError($e->getMessage()) . " ... ";
