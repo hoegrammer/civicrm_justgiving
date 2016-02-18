@@ -11,38 +11,47 @@ function assist_just_giving_node_presave($node) {
 
 function assist_just_giving_import($filename) {
     try {
-        $justGivingRows = AssistJustGivingHelpers::extractDataFromQuotedCSVFile($filename);
-        $transformer = new AssistJustGivingTransformer($justGivingRows);
+        $extractor = new AssistJustGivingDataExtractor($filename);
         $communicator = new AssistJustGivingCommunicator();
-        $contacts = $transformer->getContacts();
-        return $communicator->ensureContactsExist($contacts);
+        $contacts = $extractor->extractContacts();
+        if ($map = $communicator->ensureContactsExistAndCreateMap($contacts)) {
+            $donations = $extractor->extractDonations($map);
+            $communicator->recordDonations($donations);
+        }
+        return $communicator->getFeedback();
     } catch(Exception $e) {
         return $e->getMessage();
     } 
 }
 
-class AssistJustGivingTransformer {
+class AssistJustGivingDataExtractor {
     private $justGivingIDFieldName = "custom_1";
     private $justGivingRows;
-    public function __construct(array $justGivingRows) {
-        $this->justGivingRows = $justGivingRows;
+    public function __construct($filename) {
+        $this->justGivingRows = AssistJustGivingHelpers::extractDataFromQuotedCSVFile($filename);
     }
-    public function getContacts() {
+    public function extractDonations($map) {
+        $donations = array();
+        foreach($this->justGivingRows as $row) {
+            $donations[] = $this->extractDonation($row, $map);
+        } 
+        return $donations;
+    }
+    public function extractContacts() {
         $contacts = array();
-        $doneIDs = array();
         foreach($this->justGivingRows as $row) {
             if ($row['Fundraiser User Id']) {
                 $fundraiserID = $row["Fundraiser User Id"];
-                $contacts[$fundraiserID] = $this->getContact($row, "Fundraiser");
+                $contacts[$fundraiserID] = $this->extractContact($row, "Fundraiser");
             }
             if ($row["Donor E-mail"] !== "Anonymous") {
                 $donorID = $row["Donor User Id"];
-                $contacts[$donorID] = $this->getContact($row, "Donor");
+                $contacts[$donorID] = $this->extractContact($row, "Donor");
             }
         } 
         return $contacts;
     }  
-    private function getContact($row, $prefix) {
+    private function extractContact($row, $prefix) {
         return array(
             $this->justGivingIDFieldName => $row["$prefix User Id"],
             "contact_type" => "Individual",
@@ -57,56 +66,91 @@ class AssistJustGivingTransformer {
             "source" => "Just Giving Import " . date("Y-m-d")
         );
     }
+    private function extractDonation($row, $map) {
+        return array(
+            "contact_id" => $map($row["Donor User Id"]),
+            "total_amount" => $row["Net Donation Amount"],
+            "financial_type" => "Donation"
+        );
+    }
 }
 
 
 class AssistJustGivingCommunicator {
     private $justGivingIDFieldName = "custom_1";
+    private $feedback = null;
 
     private function formatError($errorString) {
         // Aim to change this wrapping to add colour via HTML
         return "***ERROR: $errorString ***";
     }
 
-    public function ensureContactsExist($contacts) {
-        $feedback = '';
+    public function getFeedback() {
+        return $this->feedback;
+    }
+
+    public function ensureContactsExistAndCreateMap($contacts) {
         civicrm_initialize();
-        foreach($contacts as $justGivingID => $contactData) {
+        $map = array();
+        $success = true;
+        foreach($contacts as $justGivingID => $contact) {
             try {
-                if ($this->justGivingIDExistsInCivi($justGivingID)) {
+                if ($civiId = $this->findContactWithJustGivingID($justGivingID)) {
                     continue;
-                } elseif ($contactId = $this->findContactAndAddJustGivingID($contactData, $justGivingID)) {
-                    $feedback .= "Added Just Giving ID $justGivingID to contact $contactId ... ";
+                } elseif ($civiId = $this->findContactAndAddJustGivingID($contact, $justGivingID)) {
+                    $this->feedback .= "Added Just Giving ID $justGivingID to contact $civiId ... ";
                 } else {
-                    $contactId = $this->createContactInCivi($contactData);
-                    $feedback .= "Created contact $contactId with Just Giving ID $justGivingID ... ";
+                    $civiId = $this->recordContact($contact);
+                    $this->feedback .= "Created contact $civiId with Just Giving ID $justGivingID ... ";
                 }
+                $map[$justGivingId] = $civiId;
             } catch (Exception $e) {
-                $feedback .= $this->formatError("Just Giving ID $justGivingID: " . $e->getMessage()) . " ... ";
+                $this->feedback .= $this->formatError("Just Giving ID $justGivingID: " . $e->getMessage()) . " ... ";
+                $success = false;
             }
         }
-        return $feedback . 'All done!';
+        if (!$success) {
+            $this->feedback .= " INFO: NO DONATIONS ADDED DUE TO PRIOR ERRORS SHOWN ABOVE";
+        }
+        return $success ? $map : false;
     }
-    private function createContactInCivi($contactData) {
-        $contactInCivi = civicrm_api3('Contact', 'create', $contactData); // doesn't handle address data...
+
+    private function recordContact($contact) {
+        $civiContact = civicrm_api3('Contact', 'create', $contact); // doesn't handle address data...
         
         // ...so now also add address data
-        $contactData['contact_id'] = $contactInCivi['id'];
-        civicrm_api3('Address', 'create', $contactData);
-        return $contactInCivi['id'];
+        $contact['contact_id'] = $civiContact['id'];
+        civicrm_api3('Address', 'create', $contact);
+        return $civiContact['id'];
     }
-    private function justGivingIDExistsInCivi($justGivingID) {
-        return civicrm_api3('Contact', 'get', array(
+    private function recordDonations($donations) {
+        try {
+            forEach($donations as $donation) {
+                civicrm_api3('Contribution', 'create', $donationData);
+                $amount = $donation['total_amount'];
+                $civiId = $donation['contact_id'];
+                $this->feedback = "Added donation of $amount from contact $civiId ...";
+            }
+        } catch(Exception $e) {
+            $this->feedback .= $this->formatError($e->getMessage()) . " ... ";
+            $this->feedback .= "INFO: Recording donations aborted due to error. Please delete all donations that have been added before starting again.";
+        }
+    }
+    private function findContactWithJustGivingID($justGivingID) {
+        $results = civicrm_api3('Contact', 'get', array(
+            "sequential" => 1,
             $this->justGivingIDFieldName => $justGivingID
-        ))["count"] > 0;
+        ));
+        if ($results['count'] == 0) return false;
+        return $results['values'][0]['id'];
     }
-    private function findContactAndAddJustGivingID($contactData, $justGivingID) {
+    private function findContactAndAddJustGivingID($contact, $justGivingID) {
         $candidates =  civicrm_api3('Contact', 'get', array(
-            "first_name" => $contactData["first_name"],
-            "last_name" => $contactData["last_name"],
+            "first_name" => $contact["first_name"],
+            "last_name" => $contact["last_name"],
             // This lets us match any email; just including it as
             // a field would only match primary
-            "api.Email.get" => array("email" => $contactData["email"])    
+            "api.Email.get" => array("email" => $contact["email"])    
         ))["values"];
         // If there's more than one match, we don't care which one is used.
         foreach ($candidates as $candidate) {
