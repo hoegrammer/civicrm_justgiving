@@ -35,8 +35,8 @@ function assist_just_giving_import($filename) {
 }
 
 class AssistJustGivingDataExtractor {
-    private $anonymousCiviID = 1365;
-    private $justGivingIDFieldName = "custom_1";
+    private $anonymousCiviID = 2557;  // Hard-coded: Long-term goal will be to determine this ID programatically
+    private $justGivingIDFieldName = "custom_161";
     private $justGivingRows;
     public function __construct($filename) {
         $this->justGivingRows = AssistJustGivingHelpers::extractDataFromQuotedCSVFile($filename);
@@ -94,7 +94,7 @@ class AssistJustGivingDataExtractor {
         $donation = array(
             "contact_id" => $donorCiviId,
             "total_amount" => $amount,   // NB This is currently "Net Donation Amount", see above, so maybe "total_amount" is the wrong field to assign this to (is there a "net_amount" instead?)
-            "contribution_source" => "Just Giving Upload " . date("Y-m-d h:i:s"),
+            "contribution_source" => "Just Giving Upload " . date("Y-m-d H:i:s"),
             "payment_instrument_id" => "Just Giving",
             "custom_154" => 0, // That's the API field for "Eligible for Gift Aid"
             "custom_142" => "Unrestricted", // That's the API field for "Income Condition"
@@ -124,7 +124,7 @@ class AssistJustGivingDataExtractor {
 
 
 class AssistJustGivingCommunicator {
-    private $justGivingIDFieldName = "custom_1";
+    private $justGivingIDFieldName = "custom_161";
     private $feedback = null;
 
     private function formatError($errorString) {
