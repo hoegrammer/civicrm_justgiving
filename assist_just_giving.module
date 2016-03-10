@@ -93,8 +93,12 @@ class AssistJustGivingDataExtractor {
         $amount = $row["Net Donation Amount"];
         $donation = array(
             "contact_id" => $donorCiviId,
-            "total_amount" => $amount, 
-            "financial_type_id" => "Donation"
+            "total_amount" => $amount,   // NB This is currently "Net Donation Amount", see above, so maybe "total_amount" is the wrong field to assign this to (is there a "net_amount" instead?)
+            "contribution_source" => "Just Giving Upload " . date("Y-m-d h:i:s"),
+            "payment_instrument_id" => "Just Giving",
+            "custom_154" => 0, // That's the API field for "Eligible for Gift Aid"
+            "custom_142" => "Unrestricted", // That's the API field for "Income Condition"
+            "receive_date" => $row["Donation Date"],
         );
         // If there is a fundraiser for the donation then it needs a soft credit.
         // This is done by "API Chaining" (worked out using Civi API Explorer).
@@ -103,6 +107,16 @@ class AssistJustGivingDataExtractor {
           $donation['api.ContributionSoft.create'] = array(
             'contact_id' => $fundraiserCiviId, 'amount' => $amount
           );
+          $donation['custom_163'] = 1; // That's the API field for "Event Sponsorship"
+          $donation['financial_type_id'] = "Fundraising"; // That's the API field for "Event Sponsorship"
+        }
+        else {
+          if ($row["Payment Frequency"] == "Monthly") {
+            $donation["financial_type_id"] = "Regular donations";
+          }
+          else {
+            $donation["financial_type_id"] = "Irregular donations";
+          }
         }
         return $donation;
     }
