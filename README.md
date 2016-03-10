@@ -4,6 +4,7 @@ Takes a Just Giving payment report and creates contributions in CiviCRM. It matc
 
 ## Dependencies
 * hidden_field module
+* auto_nodetitle module (the Title is ignored, so no point asking the user to enter one)
 
 ## Setup
 * Create a content type with machine name "just_giving_import"
