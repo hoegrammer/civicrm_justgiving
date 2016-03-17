@@ -91,6 +91,7 @@ class AssistJustGivingDataExtractor {
     private function extractDonation($row, $fullJGtoCiviIDMap) {
         $donorCiviId = $fullJGtoCiviIDMap[$row["Donor User Id"]];
         $amount = $row["Net Donation Amount"];
+        $receiveDate = DateTime::createFromFormat('d/m/Y',$row["Donation Date"]);  // Expecting UK format: dd/mm/yyyy
         $donation = array(
             "contact_id" => $donorCiviId,
             "total_amount" => $amount,   // NB This is currently "Net Donation Amount", see above, so maybe "total_amount" is the wrong field to assign this to (is there a "net_amount" instead?)
@@ -98,7 +99,7 @@ class AssistJustGivingDataExtractor {
             "payment_instrument_id" => "Just Giving",
             "custom_154" => 0, // That's the API field for "Eligible for Gift Aid"
             "custom_142" => "Unrestricted", // That's the API field for "Income Condition"
-            "receive_date" => DateTime::createFromFormat('d/m/Y',$row["Donation Date"])  // Expecting UK format: dd/mm/yyyy
+            "receive_date" => $receiveDate->format('Y-m-d')
         );
         // If there is a fundraiser for the donation then it needs a soft credit.
         // This is done by "API Chaining" (worked out using Civi API Explorer).
