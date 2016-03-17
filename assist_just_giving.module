@@ -98,7 +98,7 @@ class AssistJustGivingDataExtractor {
             "payment_instrument_id" => "Just Giving",
             "custom_154" => 0, // That's the API field for "Eligible for Gift Aid"
             "custom_142" => "Unrestricted", // That's the API field for "Income Condition"
-            "receive_date" => $row["Donation Date"],
+            "receive_date" => DateTime::createFromFormat('d/m/Y',$row["Donation Date"]),  // Expecting UK format: dd/mm/yyyy
         );
         // If there is a fundraiser for the donation then it needs a soft credit.
         // This is done by "API Chaining" (worked out using Civi API Explorer).
