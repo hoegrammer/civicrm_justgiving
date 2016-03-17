@@ -14,14 +14,8 @@ function assist_just_giving_import($filename) {
         $extractor = new AssistJustGivingDataExtractor($filename);
         $communicator = new AssistJustGivingCommunicator();
         $anonJGtoCiviIDMap = $extractor->mapAnonJustGivingIDsToAnonCiviID();
-        error_log('start anon');
-        error_log(print_r($anonJGtoCiviIDMap, true));
-        error_log('end anon');
         $contacts = $extractor->extractContacts();
         if ($namedJGtoCiviIDMap = $communicator->ensureContactsExistAndCreateMap($contacts)) {
-            error_log('start named');
-            error_log(print_r($namedJGtoCiviIDMap, true));
-            error_log('end named');
             // The order of adding the two maps is important. If the second map has keys
             // in common with the first they are thrown away. If the same JG ID exists against
             // both Anon and a person, we want the person to get it.
@@ -52,7 +46,6 @@ class AssistJustGivingDataExtractor {
         return $anonJGtoCiviIDMap;
     }
     public function extractDonations($fullJGtoCiviIDMap) {
-        error_log(print_r($fullJGtoCiviIDMap, true));
         $donations = array();
         foreach($this->justGivingRows as $row) {
             $donations[] = $this->extractDonation($row, $fullJGtoCiviIDMap);
