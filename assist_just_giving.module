@@ -33,7 +33,7 @@ class AssistJustGivingDataExtractor {
     private $justGivingIDFieldName = "custom_161";
     private $justGivingRows;
     public function __construct($filename) {
-        $this->justGivingRows = AssistJustGivingHelpers::extractDataFromQuotedCSVFile($filename);
+        $this->justGivingRows = AssistJustGivingHelpers::verifyFileAndExtractData($filename);
     }
     public function mapAnonJustGivingIDsToAnonCiviID() {
         $anonJGtoCiviIDMap = array();

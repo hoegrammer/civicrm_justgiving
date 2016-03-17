@@ -6,7 +6,7 @@
 class assistJustGivingHelpers {
 
     
-    public static function extractDataFromQuotedCSVFile($filename) {
+    public static function verifyFileAndExtractData($filename) {
         // this prevents problems with different line endings
         // see http://www.thisprogrammingthing.com/2012/oddity-with-fgetcsv/
         ini_set('auto_detect_line_endings', true);
@@ -17,16 +17,44 @@ class assistJustGivingHelpers {
         $fp = fopen($filename, "r");
         if ( !$fp ) {
             throw new Exception("Couldn't open file: $filename");
-        }  
+        }
         if (!self::csvIsQuoted($fp)) {
             fclose($fp);
-            throw new Exception("CSV is not quoted (or file is empty)");           
+            throw new Exception("CSV is not quoted (or file is empty)");
         }
         $dataAsArray = self::csvFileToArray($fp);
+        if (!self::dateFormatIsValid($dataAsArray)) {
+            fclose($fp);
+            throw new Exception("One or more dates in the CSV is in the wrong format (want: dd/mm/yyyy)");
+        }
         fclose($fp);
         return $dataAsArray;
     }
  
+     private static function dateFormatIsValid($dataAsArray) {
+       // checking all date fields, not just the one(s) we want to import, 
+       // as a sanity check for the file
+        $dateFields = array(
+          'Page Created Date',
+          'Page Event Date',
+          'Page Expiry Date',
+          'Event Date',
+          'Event Expiry Date',
+          'Donation Date',
+          'Donation Payment Reference Date'
+        );
+        //  Expect date format dd/mm/yyyy, dd and mm should use a leading 0 if less than 10,
+        $validDateRegex = '/^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[012])\/\d{4}$/';
+        foreach($dataAsArray as $row) {
+          foreach($dateFields as $dateField) {
+            if (isset($row[$dateField]) && $dateField && !preg_match($validDateRegex, $row[$dateField])){
+              return false;
+            }
+          }
+        }
+        return true;  // No bad dates found
+     }
+
      private static function csvIsQuoted($fp) {
          /*if (feof($fp) ) { fclose($fp); throw new Exception("Empty/null file"); }*/  // Null file (or single-line file?)
          $first_line = fgets($fp);
