@@ -83,11 +83,12 @@ class AssistJustGivingDataExtractor {
     }
     private function extractDonation($row, $fullJGtoCiviIDMap) {
         $donorCiviId = $fullJGtoCiviIDMap[$row["Donor User Id"]];
-        $amount = $row["Net Donation Amount"];
         $receiveDate = DateTime::createFromFormat('d/m/Y',$row["Donation Date"]);  // Expecting UK format: dd/mm/yyyy
         $donation = array(
             "contact_id" => $donorCiviId,
-            "total_amount" => $amount,   // NB This is currently "Net Donation Amount", see above, so maybe "total_amount" is the wrong field to assign this to (is there a "net_amount" instead?)
+            "total_amount" => $row["Donation Amount"],  
+            "net_amount" => $row["Net Donation Amount"],
+            "fee_amount" => $row["Net Total Charge"],
             "contribution_source" => "Just Giving Upload " . date("Y-m-d H:i:s"),
             "payment_instrument_id" => "Just Giving",
             "custom_154" => 0, // That's the API field for "Eligible for Gift Aid"
@@ -99,7 +100,7 @@ class AssistJustGivingDataExtractor {
         if ($row["Fundraiser User Id"]) {
           $fundraiserCiviId = $fullJGtoCiviIDMap[$row["Fundraiser User Id"]];
           $donation['api.ContributionSoft.create'] = array(
-            'contact_id' => $fundraiserCiviId, 'amount' => $amount
+            'contact_id' => $fundraiserCiviId, 'amount' => $row["Donation Amount"]
           );
           $donation['custom_163'] = 1; // That's the API field for "Event Sponsorship"
           $donation['financial_type_id'] = "Fundraising"; // That's the API field for "Event Sponsorship"
