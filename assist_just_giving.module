@@ -83,7 +83,8 @@ class AssistJustGivingDataExtractor {
     }
     private function extractDonation($row, $fullJGtoCiviIDMap) {
         $donorCiviId = $fullJGtoCiviIDMap[$row["Donor User Id"]];
-        $receiveDate = DateTime::createFromFormat('d/m/Y',$row["Donation Date"]);  // Expecting UK format: dd/mm/yyyy
+        // Expect UK format: dd/mm/yyyy, leading zeros optional on dd and mm (01-09)
+        $receiveDate = DateTime::createFromFormat('d/m/Y',$row["Donation Date"]);
         $donation = array(
             "contact_id" => $donorCiviId,
             "total_amount" => $row["Donation Amount"],  
@@ -91,8 +92,8 @@ class AssistJustGivingDataExtractor {
             "fee_amount" => $row["Net Total Charges By JustGiving"],
             "contribution_source" => "Just Giving Upload " . date("Y-m-d H:i:s"),
             "payment_instrument_id" => "Just Giving",
-            "custom_154" => 0, // That's the API field for "Eligible for Gift Aid"
-            "custom_142" => "Unrestricted", // That's the API field for "Income Condition"
+            ELIGIBLE_FOR_GIFT_AID_FIELD_NAME => 0, // That's the API field for "Eligible for Gift Aid"
+            INCOME_CONDITION_FIELD_NAME => "Unrestricted", // That's the API field for "Income Condition"
             "receive_date" => $receiveDate->format('Y-m-d')
         );
         // If there is a fundraiser for the donation then it needs a soft credit.
