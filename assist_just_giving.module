@@ -16,16 +16,15 @@ function assist_just_giving_import($filename) {
         $communicator = new AssistJustGivingCommunicator();
         $anonJGtoCiviIDMap = $extractor->mapAnonJustGivingIDsToAnonCiviID();
         $contacts = $extractor->extractContacts();
-        if ($namedJGtoCiviIDMap = $communicator->ensureContactsExistAndCreateMap($contacts)) {
-            // The order of adding the two maps is important. If the second map has keys
-            // in common with the first they are thrown away. If the same JG ID exists against
-            // both Anon and a person, we want the person to get it.
-            $donations = $extractor->extractDonations($namedJGtoCiviIDMap + $anonJGtoCiviIDMap);
-            $communicator->recordDonations($donations);
-        }
+        $namedJGtoCiviIDMap = $communicator->ensureContactsExistAndCreateMap($contacts);
+        // The order of adding the two maps is important. If the second map has keys
+        // in common with the first they are thrown away. If the same JG ID exists against
+        // both Anon and a person, we want the person to get it.
+        $donations = $extractor->extractDonations($namedJGtoCiviIDMap + $anonJGtoCiviIDMap);
+        $communicator->recordDonations($donations);
         return $communicator->getFeedback();
     } catch(Exception $e) {
-        return $e->getMessage();
+        return $communicator->getFeedback() . " " . $e->getMessage();
     } 
 }
 
@@ -153,9 +152,9 @@ class AssistJustGivingCommunicator {
             }
         }
         if (!$success) {
-            $this->feedback .= " INFO: NO DONATIONS ADDED DUE TO PRIOR ERRORS SHOWN ABOVE";
+            throw new Exception("NO DONATIONS ADDED DUE TO PRIOR ERRORS SHOWN ABOVE");
         }
-        return $success ? $namedJGtoCiviIDMap : false;
+        return $namedJGtoCiviIDMap;
     }
 
     private function recordContact($contact) {
