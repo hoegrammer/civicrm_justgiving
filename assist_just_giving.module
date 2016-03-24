@@ -89,7 +89,6 @@ class AssistJustGivingDataExtractor {
             "contact_id" => $donorCiviId,
             "total_amount" => $row["Donation Amount"],  
             "net_amount" => $row["Net Donation Amount"],
-            "fee_amount" => $row["Net Total Charges By JustGiving"],
             "contribution_source" => "Just Giving Upload " . date("Y-m-d H:i:s"),
             "payment_instrument_id" => "Just Giving",
             ELIGIBLE_FOR_GIFT_AID_FIELD_NAME => 0, // That's the API field for "Eligible for Gift Aid"
