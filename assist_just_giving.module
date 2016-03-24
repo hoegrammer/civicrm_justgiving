@@ -14,17 +14,27 @@ function assist_just_giving_import($filename) {
     try {
         $extractor = new AssistJustGivingDataExtractor($filename);
         $communicator = new AssistJustGivingCommunicator();
-        $anonJGtoCiviIDMap = $extractor->mapAnonJustGivingIDsToAnonCiviID();
-        $contacts = $extractor->extractContacts();
-        $namedJGtoCiviIDMap = $communicator->ensureContactsExistAndCreateMap($contacts);
-        // The order of adding the two maps is important. If the second map has keys
-        // in common with the first they are thrown away. If the same JG ID exists against
-        // both Anon and a person, we want the person to get it.
-        $donations = $extractor->extractDonations($namedJGtoCiviIDMap + $anonJGtoCiviIDMap);
-        $communicator->recordDonations($donations);
+        if ($extractor->isGiftAidData()) {
+          $transactions = $extractor->extractGiftAidTransactions();
+          $communicator->recordGiftAidTransactions($transactions);
+        } else {
+          $anonJGtoCiviIDMap = $extractor->mapAnonJustGivingIDsToAnonCiviID();
+          $contacts = $extractor->extractContacts();
+          $namedJGtoCiviIDMap = $communicator->ensureContactsExistAndCreateMap($contacts);
+          // The order of adding the two maps is important. If the second map has keys
+          // in common with the first they are thrown away. If the same JG ID exists against
+          // both Anon and a person, we want the person to get it.
+          $donations = $extractor->extractDonations($namedJGtoCiviIDMap + $anonJGtoCiviIDMap);
+          $communicator->recordDonations($donations);
+        }
         return $communicator->getFeedback();
     } catch(Exception $e) {
-        return $communicator->getFeedback() . " " . $e->getMessage();
+        $message = '';
+        if (isset($communicator)) {
+          $message .= $communicator->getFeedback();
+        }
+        $message .= " " . $e->getMessage();
+        return $message;
     } 
 }
 
@@ -34,6 +44,9 @@ class AssistJustGivingDataExtractor {
     public function __construct($filename) {
         $this->filename = substr($filename,10);
         $this->justGivingRows = AssistJustGivingHelpers::verifyFileAndExtractData($filename);
+    }
+    public function isGiftAidData() {
+        return array_key_exists('Gift Aid Payment Reference', $this->justGivingRows[0]);
     }
     public function mapAnonJustGivingIDsToAnonCiviID() {
         $anonJGtoCiviIDMap = array();
@@ -52,6 +65,25 @@ class AssistJustGivingDataExtractor {
             $donations[] = $this->extractDonation($row, $fullJGtoCiviIDMap);
         } 
         return $donations;
+    }
+    public function extractGiftAidTransactions() {
+        $transactions = array();
+        foreach($this->justGivingRows as $row) {
+            // Expect UK format: dd/mm/yyyy, leading zeros optional on dd and mm (01-09)
+            $receiveDate = DateTime::createFromFormat('d/m/Y',$row["Donation Date"]);
+            $transactions[] = array(
+                "contact_id" => HMRC_CIVI_ID,
+                "total_amount" => $row["Net Gift Aid Amount Paid"],  
+                "net_amount" => $row["Net Gift Aid Amount Paid"],
+                "contribution_source" => "Just Giving Gift Aid " . date("Y-m-d H:i:s") . " " . $this->filename,
+                "payment_instrument_id" => "Just Giving",
+                ELIGIBLE_FOR_GIFT_AID_FIELD_NAME => 0,
+                INCOME_CONDITION_FIELD_NAME => "Unrestricted",
+                "receive_date" => $receiveDate->format('Y-m-d'),
+                "financial_type_id" => "Gift Aid Recovered"
+            );
+        } 
+        return $transactions;
     }
     public function extractContacts() {
         $contacts = array();
@@ -180,6 +212,18 @@ class AssistJustGivingCommunicator {
         } catch(Exception $e) {
             $this->feedback .= $this->formatError($e->getMessage()) . " ... ";
             $this->feedback .= "INFO: Recording donations aborted due to error. Please delete all donations that have been added before starting again.";
+        }
+    }
+    public function recordGiftAidTransactions($transactions) {
+        try {
+            forEach($transactions as $transaction) {
+                civicrm_api3('Contribution', 'create', $transaction);
+                $amount = $transaction['total_amount'];
+                $this->feedback .= "Added Gift Aid transaction of £$amount ...";
+            }
+        } catch(Exception $e) {
+            $this->feedback .= $this->formatError($e->getMessage()) . " ... ";
+            $this->feedback .= "INFO: Recording Gift Aid transactions aborted due to error. Please delete all transactions that have been added before starting again.";
         }
     }
     private function findContactWithJustGivingID($justGivingID) {
