@@ -48,8 +48,8 @@ class assistJustGivingHelpers {
         $validDateRegex = '/^(0?[1-9]|[12][0-9]|3[01])\/(0?[1-9]|1[012])\/\d{4}$/'; // Optional leading zero
         foreach($dataAsArray as $row) {
           foreach($dateFields as $dateField) {
-            if (isset($row[$dateField]) && trim($row[$dateField]) && !preg_match($validDateRegex, $row[$dateField])){
-              error_log("DEBUG1 $dateField ".$row[$dateField].".");
+            if (isset($row[$dateField]) && trim($row[$dateField]) && !preg_match($validDateRegex, trim($row[$dateField]))){
+              //error_log("DEBUG1 $dateField ".$row[$dateField].".");
               return false;
             }
           }

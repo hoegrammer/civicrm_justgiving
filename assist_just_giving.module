@@ -70,7 +70,7 @@ class AssistJustGivingDataExtractor {
         $transactions = array();
         foreach($this->justGivingRows as $row) {
             // Expect UK format: dd/mm/yyyy, leading zeros optional on dd and mm (01-09)
-            $receiveDate = DateTime::createFromFormat('d/m/Y',$row["Donation Date"]);
+            $receiveDate = DateTime::createFromFormat('d/m/Y',trim($row["Gift Aid Payment Reference Date"]));
             $transactions[] = array(
                 "contact_id" => HMRC_CIVI_ID,
                 "total_amount" => $row["Net Gift Aid Amount Paid"],  
@@ -117,7 +117,7 @@ class AssistJustGivingDataExtractor {
     private function extractDonation($row, $fullJGtoCiviIDMap) {
         $donorCiviId = $fullJGtoCiviIDMap[$row["Donor User Id"]];
         // Expect UK format: dd/mm/yyyy, leading zeros optional on dd and mm (01-09)
-        $receiveDate = DateTime::createFromFormat('d/m/Y',$row["Donation Date"]);
+        $receiveDate = DateTime::createFromFormat('d/m/Y',trim($row["Donation Date"]));
         $donation = array(
             "contact_id" => $donorCiviId,
             "total_amount" => $row["Donation Amount"],  
@@ -154,6 +154,9 @@ class AssistJustGivingDataExtractor {
 class AssistJustGivingCommunicator {
     private $feedback = null;
 
+    public function __construct() {
+        civicrm_initialize();
+    }
     private function formatError($errorString) {
         // Aim to change this wrapping to add colour via HTML
         return "***ERROR: $errorString ***";
@@ -164,7 +167,6 @@ class AssistJustGivingCommunicator {
     }
 
     public function ensureContactsExistAndCreateMap($contacts) {
-        civicrm_initialize();
         $namedJGtoCiviIDMap = array();
         $success = true;
         foreach($contacts as $justGivingID => $contact) {
