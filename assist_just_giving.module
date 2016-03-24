@@ -1,6 +1,7 @@
 <?php
 
 require_once('inc/assist_just_giving_helpers.inc.php');
+require_once('inc/config.php');
 
 function assist_just_giving_node_presave($node) {
     if ($node->type == 'just_giving_batch') {
@@ -29,18 +30,17 @@ function assist_just_giving_import($filename) {
 }
 
 class AssistJustGivingDataExtractor {
-    private $anonymousCiviID = 2557;  // Hard-coded: Long-term goal will be to determine this ID programatically
-    private $justGivingIDFieldName = "custom_161";
     private $justGivingRows;
     public function __construct($filename) {
         $this->justGivingRows = AssistJustGivingHelpers::verifyFileAndExtractData($filename);
     }
     public function mapAnonJustGivingIDsToAnonCiviID() {
+        global $anonymousCiviID;
         $anonJGtoCiviIDMap = array();
         foreach($this->justGivingRows as $row) {
             if ($row["Donor E-mail"] === "Anonymous") {
                 $justGivingID = $row["Donor User Id"];
-                $anonJGtoCiviIDMap[$justGivingID] = $this->anonymousCiviID;
+                $anonJGtoCiviIDMap[$justGivingID] = $anonymousCiviID;
             }
         } 
         return $anonJGtoCiviIDMap;
@@ -67,8 +67,9 @@ class AssistJustGivingDataExtractor {
         return $contacts;
     }  
     private function extractContact($row, $prefix) {
+        global $justGivingIDFieldName; 
         return array(
-            $this->justGivingIDFieldName => $row["$prefix User Id"],
+            $justGivingIDFieldName => $row["$prefix User Id"],
             "contact_type" => "Individual",
             "first_name" => $row["$prefix FirstName"],
             "last_name" => $row["$prefix LastName"],
@@ -82,6 +83,7 @@ class AssistJustGivingDataExtractor {
         );
     }
     private function extractDonation($row, $fullJGtoCiviIDMap) {
+        global $eventSponsorshipFieldName;
         $donorCiviId = $fullJGtoCiviIDMap[$row["Donor User Id"]];
         $receiveDate = DateTime::createFromFormat('d/m/Y',$row["Donation Date"]);  // Expecting UK format: dd/mm/yyyy
         $donation = array(
@@ -102,8 +104,8 @@ class AssistJustGivingDataExtractor {
           $donation['api.ContributionSoft.create'] = array(
             'contact_id' => $fundraiserCiviId, 'amount' => $row["Donation Amount"]
           );
-          $donation['custom_163'] = 1; // That's the API field for "Event Sponsorship"
-          $donation['financial_type_id'] = "Fundraising"; // That's the API field for "Event Sponsorship"
+          $donation[$eventSponsorshipFieldName] = 1;
+          $donation['financial_type_id'] = "Fundraising";
         }
         else {
           if ($row["Payment Frequency"] == "Monthly") {
@@ -119,7 +121,6 @@ class AssistJustGivingDataExtractor {
 
 
 class AssistJustGivingCommunicator {
-    private $justGivingIDFieldName = "custom_161";
     private $feedback = null;
 
     private function formatError($errorString) {
@@ -183,14 +184,16 @@ class AssistJustGivingCommunicator {
         }
     }
     private function findContactWithJustGivingID($justGivingID) {
+        global $justGivingIDFieldName;
         $results = civicrm_api3('Contact', 'get', array(
             "sequential" => 1,
-            $this->justGivingIDFieldName => $justGivingID
+            $justGivingIDFieldName => $justGivingID
         ));
         if ($results['count'] == 0) return false;
         return $results['values'][0]['id'];
     }
     private function findContactAndAddJustGivingID($contact, $justGivingID) {
+        global $justGivingIDFieldName;
         $candidates =  civicrm_api3('Contact', 'get', array(
             "first_name" => $contact["first_name"],
             "last_name" => $contact["last_name"],
@@ -205,7 +208,7 @@ class AssistJustGivingCommunicator {
             if ($candidate["api.Email.get"]["count"] > 0) {
                 civicrm_api3("Contact", "create", array(
                     "id" => $candidate["id"],
-                    $this->justGivingIDFieldName => $justGivingID
+                    $justGivingIDFieldName => $justGivingID
                 ));
                 return $candidate["id"];
             }
