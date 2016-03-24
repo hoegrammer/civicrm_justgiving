@@ -40,14 +40,25 @@ class assistJustGivingHelpers {
           'Page Expiry Date',
           'Event Date',
           'Event Expiry Date',
-          'Donation Date',
+          'Donation Date'
+        );
+        // For those fields we're going to process with 'd/m/Y' (i.e. with possibly leading zeros),
+        $leadingZeroDateFields = array(
           'Donation Payment Reference Date'
         );
         //  Expect date format dd/mm/yyyy, dd and mm should use a leading 0 if less than 10,
-        $validDateRegex = '/^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[012])\/\d{4}$/';
+        $validDateRegex = '/^(0?[1-9]|[12][0-9]|3[01])\/(0?[1-9]|1[012])\/\d{4}$/';
+        $validLeadingZeroDateRegex = '/^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[012])\/\d{4}$/';
         foreach($dataAsArray as $row) {
           foreach($dateFields as $dateField) {
             if (isset($row[$dateField]) && $row[$dateField] && !preg_match($validDateRegex, $row[$dateField])){
+              error_log("DEBUG1 ".$row[$dateField].".");
+              return false;
+            }
+          }
+          foreach($leadingZeroDateFields as $dateField) {
+            if (isset($row[$dateField]) && $row[$dateField] && !preg_match($validLeadingZeroDateRegex, $row[$dateField])){
+              error_log("DEBUG2: ".$row[$dateField].".");
               return false;
             }
           }
