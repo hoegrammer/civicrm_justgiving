@@ -33,7 +33,7 @@ class AssistJustGivingDataExtractor {
     private $justGivingRows;
     private $filename;
     public function __construct($filename) {
-        $this->filename = $filename;
+        $this->filename = substr($filename,10);
         $this->justGivingRows = AssistJustGivingHelpers::verifyFileAndExtractData($filename);
     }
     public function mapAnonJustGivingIDsToAnonCiviID() {
@@ -80,7 +80,7 @@ class AssistJustGivingDataExtractor {
             "street_address" => $row["$prefix Address Line 1"],
             "supplemental_address" => $row["$prefix Address Line 2"],
             "location_type_id" => "Home",  
-            "source" => "Just Giving Import " . date("Y-m-d H:i:s") . $this->filename
+            "source" => "Just Giving Import " . date("Y-m-d H:i:s") . " " . $this->filename
         );
     }
     private function extractDonation($row, $fullJGtoCiviIDMap) {
@@ -91,7 +91,7 @@ class AssistJustGivingDataExtractor {
             "contact_id" => $donorCiviId,
             "total_amount" => $row["Donation Amount"],  
             "net_amount" => $row["Net Donation Amount"],
-            "contribution_source" => "Just Giving Upload " . date("Y-m-d H:i:s") . $this->filename,
+            "contribution_source" => "Just Giving Upload " . date("Y-m-d H:i:s") . " " . $this->filename,
             "payment_instrument_id" => "Just Giving",
             ELIGIBLE_FOR_GIFT_AID_FIELD_NAME => 0, // That's the API field for "Eligible for Gift Aid"
             INCOME_CONDITION_FIELD_NAME => "Unrestricted", // That's the API field for "Income Condition"
