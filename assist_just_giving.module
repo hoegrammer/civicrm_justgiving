@@ -35,14 +35,14 @@ class AssistJustGivingDataExtractor {
         $this->justGivingRows = AssistJustGivingHelpers::verifyFileAndExtractData($filename);
     }
     public function mapAnonJustGivingIDsToAnonCiviID() {
-        global $anonymousCiviID;
         $anonJGtoCiviIDMap = array();
         foreach($this->justGivingRows as $row) {
             if ($row["Donor E-mail"] === "Anonymous") {
                 $justGivingID = $row["Donor User Id"];
-                $anonJGtoCiviIDMap[$justGivingID] = $anonymousCiviID;
+                $anonJGtoCiviIDMap[$justGivingID] = ANONYMOUS_CIVI_ID;
             }
         } 
+        error_log("anon: ",  ANONYMOUS_CIVI_ID);
         return $anonJGtoCiviIDMap;
     }
     public function extractDonations($fullJGtoCiviIDMap) {
@@ -67,9 +67,8 @@ class AssistJustGivingDataExtractor {
         return $contacts;
     }  
     private function extractContact($row, $prefix) {
-        global $justGivingIDFieldName; 
         return array(
-            $justGivingIDFieldName => $row["$prefix User Id"],
+            JUST_GIVING_ID_FIELD_NAME => $row["$prefix User Id"],
             "contact_type" => "Individual",
             "first_name" => $row["$prefix FirstName"],
             "last_name" => $row["$prefix LastName"],
@@ -83,14 +82,13 @@ class AssistJustGivingDataExtractor {
         );
     }
     private function extractDonation($row, $fullJGtoCiviIDMap) {
-        global $eventSponsorshipFieldName;
         $donorCiviId = $fullJGtoCiviIDMap[$row["Donor User Id"]];
         $receiveDate = DateTime::createFromFormat('d/m/Y',$row["Donation Date"]);  // Expecting UK format: dd/mm/yyyy
         $donation = array(
             "contact_id" => $donorCiviId,
             "total_amount" => $row["Donation Amount"],  
             "net_amount" => $row["Net Donation Amount"],
-            "fee_amount" => $row["Net Total Charge"],
+            "fee_amount" => $row["Net Total Charges By JustGiving"],
             "contribution_source" => "Just Giving Upload " . date("Y-m-d H:i:s"),
             "payment_instrument_id" => "Just Giving",
             "custom_154" => 0, // That's the API field for "Eligible for Gift Aid"
@@ -104,7 +102,7 @@ class AssistJustGivingDataExtractor {
           $donation['api.ContributionSoft.create'] = array(
             'contact_id' => $fundraiserCiviId, 'amount' => $row["Donation Amount"]
           );
-          $donation[$eventSponsorshipFieldName] = 1;
+          $donation[EVENT_SPONSORSHIP_FIELD_NAME] = 1;
           $donation['financial_type_id'] = "Fundraising";
         }
         else {
@@ -174,7 +172,7 @@ class AssistJustGivingCommunicator {
                 $civiId = $donation['contact_id'];
                 $this->feedback .= "Added donation of £$amount from contact $civiId ";
                 if (isset($donation['api.ContributionSoft.create'])) {
-                  $this->feedback .= "Soft credited to " . $donation['api.ContributionSoft.create']['contact_id'];
+                  $this->feedback .= "(soft credited to " . $donation['api.ContributionSoft.create']['contact_id'] . ')';
                 }
                 $this->feedback .= ' ... ';
             }
@@ -184,10 +182,9 @@ class AssistJustGivingCommunicator {
         }
     }
     private function findContactWithJustGivingID($justGivingID) {
-        global $justGivingIDFieldName;
         $results = civicrm_api3('Contact', 'get', array(
             "sequential" => 1,
-            $justGivingIDFieldName => $justGivingID
+            JUST_GIVING_ID_FIELD_NAME => $justGivingID
         ));
         if ($results['count'] == 0) return false;
         return $results['values'][0]['id'];
