@@ -9,6 +9,8 @@ class assistJustGivingHelpers {
     public static function verifyFileAndExtractData($filename) {
         // this prevents problems with different line endings
         // see http://www.thisprogrammingthing.com/2012/oddity-with-fgetcsv/
+        $numberOfRecords = 0;
+        $maxNumberOfRecords = 100;
         ini_set('auto_detect_line_endings', true);
  
         if ( !file_exists($filename) ) {
@@ -23,6 +25,11 @@ class assistJustGivingHelpers {
             throw new Exception("CSV is not quoted (or file is empty)");
         }
         $dataAsArray = self::csvFileToArray($fp);
+        $numberOfRecords = count($dataAsArray);
+        if ($numberOfRecords > $maxNumberOfRecords) {
+            fclose($fp);
+            throw new Exception("Too many records ($NumberOfRecords) to process at once: Please split into smaller CSV files with a maximum of $maxNumberOfRecords entries each.");
+        }
         if (!self::dateFormatIsValid($dataAsArray)) {
             fclose($fp);
             throw new Exception("One or more dates in the CSV is in the wrong format (want: dd/mm/yyyy)");
