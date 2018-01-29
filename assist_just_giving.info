@@ -1,3 +1,4 @@
 name = Assist Just Giving
 description = When a node of the content type "Just Giving Batch" is created, this performs the upload and writes response into the content.
 core = 7.x
+package = Custom
