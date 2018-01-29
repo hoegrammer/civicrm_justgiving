@@ -10,9 +10,9 @@ Takes a Just Giving payment report and creates contributions in CiviCRM. It matc
 * Copy config.sample.php to config.php - this is the config file
 * Create a content type with machine name "just_giving_import"
 * Set up a Private Files directory in Drupal if you don't already have one (tip: add a `.htaccess` saying just `Deny from all`)
-* Add a hidden file field (machine name: "file", destination: Private) and a hidden text field (10,000 characters, machine name: "results")
-* Create two custom (alphanumeric) fields on the Individual contact type, one for Just Giving ID and one for Just Giving URL. Enter the machine names for these fields into the config file
-* Create a CiviCRM contact which will be used to assign all anonymous donations. Give then a Just Giving ID and enter this in the config file
+* Add a hidden file field (machine name: "file", destination: Private) and a hidden text field (10,000 characters, machine name: "results") to the content type
+* Create an alphanumeric field on the appropriate CiviCRM contact type, for Just Giving ID. Enter the machine name for this field into the config file
+* Create a CiviCRM contact (of that type) which will be used to assign all anonymous donations. Enter their contact id in the config file
 * **** THere are also some Assist-specific field names in the config which are used in the code ****
 
 ## Use
