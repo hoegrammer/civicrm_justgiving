@@ -248,8 +248,9 @@ class AssistJustGivingCommunicator {
         ))["values"];
         // If there's more than one match, we don't care which one is used.
         foreach ($candidates as $candidate) {
-            // Candidates are returned even if there is no match on
-            // email, but email is returned only if it matches
+            // Candidates are returned by the api even if there is no match on
+            // email, but email is returned only if it matches. So we only want 
+	    // the ones that have been returned with an email address.
             if ($candidate["api.Email.get"]["count"] > 0) {
                 civicrm_api3("Contact", "create", array(
                     "id" => $candidate["id"],
