@@ -56,7 +56,6 @@ class AssistJustGivingDataExtractor {
                 $anonJGtoCiviIDMap[$justGivingID] = ANONYMOUS_CIVI_ID;
             }
         } 
-        error_log("anon: ",  ANONYMOUS_CIVI_ID);
         return $anonJGtoCiviIDMap;
     }
     public function extractDonations($fullJGtoCiviIDMap) {
@@ -172,12 +171,14 @@ class AssistJustGivingCommunicator {
         $success = true;
         foreach($contacts as $justGivingID => $contact) {
             try {
-                if ($civiId = $this->findContactWithJustGivingID($justGivingID)) {
+                if ($civiId = $this->findContactByJustGivingID($justGivingID)) {
                     ;
-                } elseif ($civiId = $this->findContactAndAddJustGivingID($contact, $justGivingID)) {
+                } elseif ($civiId = $this->findContactByNameAndEmail($contact)) {
+		    $this->addJustGivingIDToContact($civiId, $justGivingID);
                     $this->feedback .= "Added Just Giving ID $justGivingID to contact $civiId ... ";
                 } else {
-                    $civiId = $this->recordContact($contact);
+                    $civiId = $this->createContact($contact);
+		    $this->addJustGivingIDToContact($civiId, $justGivingID);
                     $this->feedback .= "Created contact $civiId with Just Giving ID $justGivingID ... ";
                 }
                 $namedJGtoCiviIDMap[$justGivingID] = $civiId;
@@ -192,7 +193,7 @@ class AssistJustGivingCommunicator {
         return $namedJGtoCiviIDMap;
     }
 
-    private function recordContact($contact) {
+    private function createContact($contact) {
         $civiContact = civicrm_api3('Contact', 'create', $contact); // doesn't handle address data...
         
         // ...so now also add address data
@@ -229,7 +230,7 @@ class AssistJustGivingCommunicator {
             $this->feedback .= "INFO: Recording Gift Aid transactions aborted due to error. Please delete all transactions that have been added before starting again.";
         }
     }
-    private function findContactWithJustGivingID($justGivingID) {
+    private function findContactByJustGivingID($justGivingID) {
         $results = civicrm_api3('Contact', 'get', array(
             "sequential" => 1,
             JUST_GIVING_ID_FIELD_NAME => $justGivingID
@@ -237,7 +238,7 @@ class AssistJustGivingCommunicator {
         if ($results['count'] == 0) return false;
         return $results['values'][0]['id'];
     }
-    private function findContactAndAddJustGivingID($contact, $justGivingID) {
+    private function findContactByNameAndEmail($contact) {
         global $justGivingIDFieldName;
         $candidates =  civicrm_api3('Contact', 'get', array(
             "first_name" => $contact["first_name"],
@@ -252,12 +253,15 @@ class AssistJustGivingCommunicator {
             // email, but email is returned only if it matches. So we only want 
 	    // the ones that have been returned with an email address.
             if ($candidate["api.Email.get"]["count"] > 0) {
-                civicrm_api3("Contact", "create", array(
-                    "id" => $candidate["id"],
-                    $justGivingIDFieldName => $justGivingID
-                ));
                 return $candidate["id"];
             }
         }
+    }
+    private function addJustGivingIDToContact($civiId, $justGivingID) {
+        civicrm_api3('CustomValue', 'create', array(
+  	    'sequential' => 1,
+  	    'entity_id' => $civiId,
+  	    'custom_12' => $justGivingID
+	));
     }
 }
