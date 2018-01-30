@@ -103,6 +103,7 @@ class AssistJustGivingDataExtractor {
         return array(
             JUST_GIVING_ID_FIELD_NAME => $row["$prefix User Id"],
             "contact_type" => "Individual",
+	    "contact_sub_type" => "Supporter",
             "first_name" => $row["$prefix FirstName"],
             "last_name" => $row["$prefix LastName"],
             "email" => $row["$prefix E-mail"],
