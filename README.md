@@ -14,6 +14,7 @@ Takes a Just Giving payment report and creates contributions in CiviCRM. It matc
 * Create an alphanumeric field on the appropriate CiviCRM contact type, for Just Giving ID. Enter the machine name for this field into the config file
 * Create a CiviCRM contact (of that type) which will be used to assign all anonymous donations. Enter their contact id in the config file.
 * Create three financial types: "Fundraising", "Regular donations" and "Irregular donations"
+* Create a payment method called "Just Giving"
 * **** THere are also some Assist-specific field names in the config which are used in the code. ****
 
 ## Use
