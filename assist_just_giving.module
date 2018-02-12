@@ -102,7 +102,7 @@ class AssistJustGivingDataExtractor {
         return array(
             JUST_GIVING_ID_FIELD_NAME => $row["$prefix User Id"],
             "contact_type" => "Individual",
-	        "contact_sub_type" => "Supporter",
+	          "contact_sub_type" => CONTACT_SUB_TYPE,
             "first_name" => $row["$prefix FirstName"],
             "last_name" => $row["$prefix LastName"],
             "email" => $row["$prefix E-mail"],
@@ -174,11 +174,11 @@ class AssistJustGivingCommunicator {
                 if ($civiId = $this->findContactByJustGivingID($justGivingID)) {
                     ;
                 } elseif ($civiId = $this->findContactByNameAndEmail($contact)) {
-		    $this->addJustGivingIDToContact($civiId, $justGivingID);
+		                $this->addJustGivingIDToContact($civiId, $justGivingID);
                     $this->feedback .= "Added Just Giving ID $justGivingID to contact $civiId ... ";
                 } else {
                     $civiId = $this->createContact($contact);
-		    $this->addJustGivingIDToContact($civiId, $justGivingID);
+		                $this->addJustGivingIDToContact($civiId, $justGivingID);
                     $this->feedback .= "Created contact $civiId with Just Giving ID $justGivingID ... ";
                 }
                 $namedJGtoCiviIDMap[$justGivingID] = $civiId;
@@ -251,7 +251,7 @@ class AssistJustGivingCommunicator {
         foreach ($candidates as $candidate) {
             // Candidates are returned by the api even if there is no match on
             // email, but email is returned only if it matches. So we only want 
-	    // the ones that have been returned with an email address.
+	          // the ones that have been returned with an email address.
             if ($candidate["api.Email.get"]["count"] > 0) {
                 return $candidate["id"];
             }
@@ -259,9 +259,9 @@ class AssistJustGivingCommunicator {
     }
     private function addJustGivingIDToContact($civiId, $justGivingID) {
         civicrm_api3('CustomValue', 'create', array(
-  	    'sequential' => 1,
-  	    'entity_id' => $civiId,
-  	    'custom_12' => $justGivingID
-	));
+  	        'sequential' => 1,
+  	        'entity_id' => $civiId,
+  	        JUST_GIVING_ID_FIELD_NAME  => $justGivingID
+        ));
     }
 }

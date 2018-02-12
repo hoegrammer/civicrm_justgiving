@@ -3,6 +3,7 @@
 // then move/copy it to config.php in the same directory.
 define('ANONYMOUS_CIVI_ID', "1234"); // the contact id of the contact who will "own" all anonymous donations.
 define('JUST_GIVING_ID_FIELD_NAME', "custom_123"); // the custom field for storing Just Giving ID against contacts. This has to be in a multirecord fieldset
+define('CONTACT_SUB_TYPE', "Supporter"); // the sub-type to create when making new contacts
 
 // Assist-specific custom fields on donations.
 define('EVENT_SPONSORSHIP_FIELD_NAME', 'custom_234');
