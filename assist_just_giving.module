@@ -102,7 +102,6 @@ class AssistJustGivingDataExtractor {
         return array(
             JUST_GIVING_ID_FIELD_NAME => $row["$prefix User Id"],
             "contact_type" => "Individual",
-	          "contact_sub_type" => CONTACT_SUB_TYPE,
             "first_name" => $row["$prefix FirstName"],
             "last_name" => $row["$prefix LastName"],
             "email" => $row["$prefix E-mail"],
@@ -199,6 +198,7 @@ class AssistJustGivingCommunicator {
         // ...so now also add address data
         $contact['contact_id'] = $civiContact['id'];
         civicrm_api3('Address', 'create', $contact);
+        // Add the contact to the specified group
         return $civiContact['id'];
     }
     public function recordDonations($donations) {
@@ -262,6 +262,16 @@ class AssistJustGivingCommunicator {
   	        'sequential' => 1,
   	        'entity_id' => $civiId,
   	        JUST_GIVING_ID_FIELD_NAME  => $justGivingID
+        ));
+        // Ensure they have the appropriate contact type and group
+        // ("create" with an id means update)
+        civicrm_api3('Contact', 'create', array(
+            "id" => $civiId,
+	          "contact_sub_type" => CONTACT_SUB_TYPE
+        ));
+        civicrm_api3('GroupContact', 'create', array(
+            'group_id' => GROUP_ID,
+            'contact_id' => $civiId
         ));
     }
 }
