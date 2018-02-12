@@ -168,17 +168,20 @@ class AssistJustGivingCommunicator {
     public function ensureContactsExistAndCreateMap($contacts) {
         $namedJGtoCiviIDMap = array();
         $success = true;
+        $first_contact_logged = false;
         foreach($contacts as $justGivingID => $contact) {
             try {
                 if ($civiId = $this->findContactByJustGivingID($justGivingID)) {
                     ;
                 } elseif ($civiId = $this->findContactByNameAndEmail($contact)) {
 		                $this->addJustGivingIDToContact($civiId, $justGivingID);
-                    $this->feedback .= "Added Just Giving ID $justGivingID to contact $civiId ... ";
                 } else {
                     $civiId = $this->createContact($contact);
 		                $this->addJustGivingIDToContact($civiId, $justGivingID);
-                    $this->feedback .= "Created contact $civiId with Just Giving ID $justGivingID ... ";
+                    if (!$first_contact_logged) {
+                      $this->feedback .= "Created contact(s) starting with id $civiId ... ";            
+                      $first_contact_logged = true;
+                    }
                 }
                 $namedJGtoCiviIDMap[$justGivingID] = $civiId;
             } catch (Exception $e) {
@@ -202,16 +205,17 @@ class AssistJustGivingCommunicator {
         return $civiContact['id'];
     }
     public function recordDonations($donations) {
+        $first_donation_logged = false;
         try {
             forEach($donations as $donation) {
-                civicrm_api3('Contribution', 'create', $donation);
+                $results = civicrm_api3('Contribution', 'create', $donation);
+                error_log(print_r($results, true));
                 $amount = $donation['total_amount'];
                 $civiId = $donation['contact_id'];
-                $this->feedback .= "Added donation of £$amount from contact $civiId ";
-                if (isset($donation['api.ContributionSoft.create'])) {
-                  $this->feedback .= "(soft credited to " . $donation['api.ContributionSoft.create']['contact_id'] . ')';
+                if (!$first_donation_logged) {
+                  $this->feedback .= "Added donation(s) starting with id " . $results['id'];
+                  $first_donation_logged = true;
                 }
-                $this->feedback .= ' ... ';
             }
         } catch(Exception $e) {
             $this->feedback .= $this->formatError($e->getMessage()) . " ... ";
