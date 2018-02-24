@@ -174,10 +174,10 @@ class AssistJustGivingCommunicator {
                 if ($civiId = $this->findContactByJustGivingID($justGivingID)) {
                     ;
                 } elseif ($civiId = $this->findContactByNameAndEmail($contact)) {
-		                $this->addJustGivingIDToContact($civiId, $justGivingID);
+		            $this->addJustGivingIDToContact($civiId, $justGivingID);
                 } else {
                     $civiId = $this->createContact($contact);
-		                $this->addJustGivingIDToContact($civiId, $justGivingID);
+		            $this->addJustGivingIDToContact($civiId, $justGivingID);
                     if (!$first_contact_logged) {
                       $this->feedback .= "Created contact(s) starting with id $civiId ... ";            
                       $first_contact_logged = true;
