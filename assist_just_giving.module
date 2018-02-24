@@ -173,10 +173,10 @@ class AssistJustGivingCommunicator {
                 if ($civiId = $this->findContactByJustGivingID($justGivingID)) {
                     ;
                 } elseif ($civiId = $this->findContactByNameAndEmail($contact)) {
-		            $this->addJustGivingIDToContact($civiId, $justGivingID);
+		            $this->addJustGivingIDAndSupporterStatusToContact($civiId, $justGivingID);
                 } else {
                     $civiId = $this->createContact($contact);
-		            $this->addJustGivingIDToContact($civiId, $justGivingID);
+		            $this->addJustGivingIDAndSupporterStatusToContact($civiId, $justGivingID);
                     if (!$first_contact_logged) {
                       $this->feedback .= "Created contact(s) starting with id $civiId ... ";            
                       $first_contact_logged = true;
@@ -260,7 +260,7 @@ class AssistJustGivingCommunicator {
             }
         }
     }
-    private function addJustGivingIDToContact($civiId, $justGivingID) {
+    private function addJustGivingIDAndSupporterStatusToContact($civiId, $justGivingID) {
         civicrm_api3('CustomValue', 'create', array(
   	        'sequential' => 1,
   	        'entity_id' => $civiId,
