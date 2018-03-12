@@ -12,4 +12,3 @@ define('ELIGIBLE_FOR_GIFT_AID_FIELD_NAME', 'custom_345');
 define('INCOME_CONDITION_FIELD_NAME', 'custom_456');
 
 ?>
-
