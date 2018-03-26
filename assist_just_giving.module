@@ -208,7 +208,6 @@ class AssistJustGivingCommunicator {
         try {
             forEach($donations as $donation) {
                 $results = civicrm_api3('Contribution', 'create', $donation);
-                error_log(print_r($results, true));
                 $amount = $donation['total_amount'];
                 $civiId = $donation['contact_id'];
                 if (!$first_donation_logged) {
